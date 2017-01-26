@@ -57,6 +57,10 @@ class Cors extends Interceptor {
 
   bool get isPreflight => _isPreflight;
 
+  bool _hasError = false;
+
+  bool get hasError => _hasError;
+
   void pre(Request req) {
     params = new CorsRequestParams.fromRequest(req);
 
@@ -71,16 +75,94 @@ class Cors extends Interceptor {
 
     _isCors = true;
 
-    //TODO filter
-
     if (req.method == 'OPTIONS' && params.method is String) {
       _isPreflight = true;
+    }
+
+    _filterOrigin();
+
+    if (!_hasError) {
+      _filterMethods(req);
+    }
+
+    if (!_hasError) {
+      _filterHeaders(req);
+    }
+
+    if (_hasError) {
+      throw new JaguarError(200, '', '');
+    }
+  }
+
+  void _filterOrigin() {
+    if (options.allowAllOrigins) return;
+
+    if (options.allowedOrigins == null) {
+      _hasError = true;
+      return;
+    }
+
+    if (!options.allowedOrigins.contains(params.origin)) {
+      _hasError = true;
+      return;
+    }
+  }
+
+  void _filterMethods(Request req) {
+    String method;
+
+    if (isPreflight) {
+      method = params.method;
+    } else {
+      method = req.method;
+    }
+
+    if (options.allowAllMethods) return;
+
+    if (options.allowedMethods.length == 0) {
+      _hasError = true;
+      return;
+    }
+
+    if (!options.allowedMethods.contains(method)) {
+      _hasError = true;
+      return;
+    }
+  }
+
+  void _filterHeaders(Request req) {
+    final List<String> headers = [];
+
+    if (isPreflight) {
+      if (params.headers is List<String>) {
+        headers.addAll(params.headers);
+      }
+    } else {
+      req.headers.forEach((String header, _) => headers.add(header));
+    }
+
+    if (headers.length == 0) return;
+
+    if (options.allowAllHeaders) return;
+
+    if (options.allowedHeaders == null) {
+      _hasError = true;
+      return;
+    }
+
+    for (String header in headers) {
+      if (!options.allowedHeaders.contains(header)) {
+        _hasError = true;
+        return;
+      }
     }
   }
 
   Response<ResponseType> post<ResponseType>(
       @InputRouteResponse() Response<ResponseType> response) {
     if (!isCors) return response;
+
+    if (_hasError) return response;
 
     if (options.allowAllOrigins) {
       response.headers.set(CorsHeaders.AllowedOrigin, '*');
@@ -143,6 +225,8 @@ class CorsRequestParams {
 
   factory CorsRequestParams.fromRequest(Request req) {
     final String origin = req.headers.value(CorsHeaders.Origin);
+
+    if (origin is! String) return new CorsRequestParams._(null, null, null);
 
     String method;
     {

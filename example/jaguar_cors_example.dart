@@ -3,5 +3,4 @@
 
 //TODO import 'package:jaguar_cors/jaguar_cors.dart';
 
-main() {
-}
+main() {}
