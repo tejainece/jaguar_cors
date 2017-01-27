@@ -57,9 +57,11 @@ class Cors extends Interceptor {
 
   bool get isPreflight => _isPreflight;
 
-  bool _hasError = false;
+  String _errorMsg;
 
-  bool get hasError => _hasError;
+  String get errorMsg => _errorMsg;
+
+  bool get hasError => _errorMsg != null;
 
   void pre(Request req) {
     params = new CorsRequestParams.fromRequest(req);
@@ -81,16 +83,16 @@ class Cors extends Interceptor {
 
     _filterOrigin();
 
-    if (!_hasError) {
+    if (errorMsg == null) {
       _filterMethods(req);
     }
 
-    if (!_hasError) {
+    if (errorMsg == null) {
       _filterHeaders(req);
     }
 
-    if (_hasError) {
-      throw new JaguarError(200, '', '');
+    if (errorMsg != null) {
+      throw new JaguarError(403, 'Invalid CORS request', errorMsg);
     }
   }
 
@@ -98,12 +100,12 @@ class Cors extends Interceptor {
     if (options.allowAllOrigins) return;
 
     if (options.allowedOrigins == null) {
-      _hasError = true;
+      _errorMsg = 'Origin not allowed!';
       return;
     }
 
     if (!options.allowedOrigins.contains(params.origin)) {
-      _hasError = true;
+      _errorMsg = 'Origin not allowed!';
       return;
     }
   }
@@ -120,12 +122,12 @@ class Cors extends Interceptor {
     if (options.allowAllMethods) return;
 
     if (options.allowedMethods.length == 0) {
-      _hasError = true;
+      _errorMsg = 'Method not allowed!';
       return;
     }
 
     if (!options.allowedMethods.contains(method)) {
-      _hasError = true;
+      _errorMsg = 'Method not allowed!';
       return;
     }
   }
@@ -146,13 +148,13 @@ class Cors extends Interceptor {
     if (options.allowAllHeaders) return;
 
     if (options.allowedHeaders == null) {
-      _hasError = true;
+      _errorMsg = 'Header not allowed!';
       return;
     }
 
     for (String header in headers) {
       if (!options.allowedHeaders.contains(header)) {
-        _hasError = true;
+        _errorMsg = 'Header not allowed!';
         return;
       }
     }
@@ -162,7 +164,7 @@ class Cors extends Interceptor {
       @InputRouteResponse() Response<ResponseType> response) {
     if (!isCors) return response;
 
-    if (_hasError) return response;
+    if (hasError) return response;
 
     if (options.allowAllOrigins) {
       response.headers.set(CorsHeaders.AllowedOrigin, '*');
