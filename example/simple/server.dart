@@ -7,35 +7,22 @@ import 'package:jaguar_cors/jaguar_cors.dart';
 main() async {
   final builder = new MuxBuilder();
 
-  {
-    String handler() {
-      return 'none';
-    }
+  builder.get('/none', () {
+    return 'none';
+  }).wrap(new WrapCors(new CorsOptions()));
 
-    builder.get('/none', handler).wrap(new WrapCors(new CorsOptions()));
-  }
+  final options1 = new CorsOptions(
+      allowedOrigins: ['http://example.com', 'http://example1.com'],
+      allowAllMethods: true,
+      allowAllHeaders: true);
+  builder.get('/origins', () => 'origins').wrap(new WrapCors(options1));
 
-  {
-    String handler() => 'origins';
-    final options = new CorsOptions(
-        allowedOrigins: ['http://example.com', 'http://example1.com'],
-        allowAllMethods: true,
-        allowAllHeaders: true);
-    builder.get('/origins', handler).wrap(new WrapCors(options));
-  }
-
-  {
-    String handler() {
-      return 'preflight';
-    }
-
-    final options = new CorsOptions(
-        allowedOrigins: ['http://example.com'],
-        allowAllMethods: true,
-        allowAllHeaders: true);
-    builder.route('/preflight', handler,
-        methods: ['OPTIONS']).wrap(new WrapCors(options));
-  }
+  final options2 = new CorsOptions(
+      allowedOrigins: ['http://example.com'],
+      allowAllMethods: true,
+      allowAllHeaders: true);
+  builder.route('/preflight', () => 'preflight',
+      methods: ['OPTIONS']).wrap(new WrapCors(options2));
 
   Configuration conf = new Configuration();
   conf.addApi(builder.build());
